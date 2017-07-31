@@ -1,0 +1,71 @@
+%ifndef CASM_MAC 
+    %define CASM_MAC 
+
+	; Used to reset one or more registers
+	%macro reset 1-*
+		%rep  %0 
+			xor %1,%1
+			%rotate 1 
+		%endrep
+	%endmacro
+
+	%macro push 1-*
+		%rep  %0 
+			push %1
+			%rotate 1 
+		%endrep
+	%endmacro
+
+	%macro if 1 
+		%push if 
+		j%-1  %$ifnot
+	%endmacro 
+
+	%macro else 0 
+	  %ifctx if 
+			%repl   else 
+			jmp     %$ifend 
+			%$ifnot: 
+	  %else 
+			%error  "expected `if' before `else'" 
+	  %endif 
+	%endmacro 
+
+	%macro endif 0 
+	  %ifctx if 
+			%$ifnot: 
+			%pop 
+	  %elifctx      else 
+			%$ifend: 
+			%pop 
+	  %else 
+			%error  "expected `if' or `else' before `endif'" 
+	  %endif 
+	%endmacro
+
+	%imacro proc 1			; begin a procedure definition
+		%push proc
+				  global %1
+		%1:       push ebp
+				  mov ebp,esp
+		%assign %$arg 8
+		%define %$procname %1
+	%endmacro
+
+	%imacro arg 0-1 4		; used with the argument name as a label
+		%00	  equ %$arg
+		%assign %$arg %1+%$arg
+	%endmacro
+
+	%imacro endproc 0
+		%ifnctx proc
+			%error Mismatched 'endproc'/'proc'
+		%else
+			  leave
+			  ret
+			__end_%$procname:		; useful for calculating function size
+			%pop
+		%endif
+	%endmacro
+
+%endif
